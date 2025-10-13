@@ -6,19 +6,49 @@ import re
 import argparse
 from dotenv import load_dotenv
 import os
+import sys
+from typing import Dict, List, Any
 import parseBook
 
 load_dotenv()
 
 API_URL = os.getenv("API_URL")
-API_TOKEN = os.getenv(("API_KEY"))
+API_TOKEN = os.getenv("API_KEY")
+LOCALE = os.getenv("WIKI_LOCALE")
 
-queries_basepath = "queries"
-create_page_query_file = "create_page.gql"
+QUERIES_BASEPATH = "queries"
+LIST_PAGES_QUERY_FILE = "list_pages.gql"
+CREATE_PAGE_MUTATION_FILE = "create_page.gql"
+DELETE_PAGE_MUTATION_FILE = "delete_page.gql"
 
-fullpath = f"{queries_basepath}/{create_page_query_file}"
 
-# print("Full path:", fullpath)
+def run_graphql_query(query: str, variables: Dict = None) -> Dict:
+    """Runs a GraphQL query and returns the result"""
+    if not API_TOKEN:
+        print("Error: API_KEY environment variable not set!")
+        sys.exit(1)
+
+    headers = {"Authorization": f"Bearer {API_TOKEN}"}
+    payload = {"query": query}
+
+    if variables:
+        payload["variables"] = variables
+
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload)
+        response.raise_for_status()
+        data = response.json()
+
+        if "errors" in data:
+            for err in data["errors"]:
+                print(f"  -> GraphQL Error: {err.get('message', 'Unknown error')}")
+        return data
+    except requests.exceptions.RequestException as e:
+        print(f"  -> HTTP Request Error: {e}")
+    except json.JSONDecodeError:
+        print("  -> Error: Could not decode JSON response from the server.")
+    # Return an empty dict on failure
+    return {}
 
 
 def clean_heading(heading: str) -> str:
@@ -29,150 +59,89 @@ def clean_heading(heading: str) -> str:
     return cleaned.strip()
 
 
-def nukeIt():
-    listPages = """
-        query {
-            pages {
-                list {
-                    id
-                    path
-                }
-            }
-        }
-        """
-    headers = {"Authorization": f"Bearer {API_TOKEN}"}
-
+def delete_all_pages(list_query: str, delete_mutation: str):
+    """Gets all page ids and deletes the associated pages, except for the homepage"""
     print("Getting all page ids...")
-    try:
-        response = requests.post(API_URL, headers=headers, json={"query": listPages})
-        response.raise_for_status()
-        pages = response.json().get("data", {}).get("pages", {}).get("list", [])
+    response_data = run_graphql_query(list_query)
+    pages = response_data.get("data", {}).get("pages", {}).get("list", [])
 
-        if not pages:
-            print("No pages found to delete.")
-            return
-
-        print(f"Found {len(pages)} pages to delete.")
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching pages: {e}")
-        return
-    except json.JSONDecodeError:
-        print("Error decoding JSON response from the server.")
+    if not pages:
+        print("No pages found to delete.")
         return
 
-    deletePages = """
-        mutation($id: Int!) {
-            pages {
-                delete(id: $id) {
-                    responseResult {
-                        succeeded
-                        message
-                    }
-                }
-            }
-        }
-    """
+    print(f"Found {len(pages)} pages. Starting deletion...")
 
-    deleted_count = 0
-    failed_count = 0
+    deleted_count, failed_count = 0, 0
 
     for page in pages:
-        page_id = page["id"]
-        page_path = page["path"]
-        variables = {"id": page_id}
-        if page_path != "home":
-            try:
-                print(f"Deleting page '{page_path}' (ID: {page_id})...", end="")
-                delete_response = requests.post(
-                    API_URL,
-                    headers=headers,
-                    json={"query": deletePages, "variables": variables},
-                )
-                delete_response.raise_for_status()
+        if page["path"] == "home":
+            continue
 
-                result = delete_response.json()
-                succeeded = (
-                    result.get("data", {})
-                    .get("pages", {})
-                    .get("delete", {})
-                    .get("responseResult", {})
-                    .get("succeeded", False)
-                )
+        print(f"Deleting page '{page['path']}' (ID: {page['id']})...", end="")
+        delete_response = run_graphql_query(delete_mutation, {"id": page["id"]})
 
-                if succeeded:
-                    print(" Success.")
-                    deleted_count += 1
-                else:
-                    message = (
-                        result.get("data", {})
-                        .get("pages", {})
-                        .get("delete", {})
-                        .get("responseResult", {})
-                        .get("message", "Unknown error")
-                    )
-                    print(f" Failed. Reason: {message}")
-                    failed_count += 1
+        succeeded = (
+            delete_response.get("data", {})
+            .get("pages", {})
+            .get("delete", {})
+            .get("responseResult", {})
+            .get("succeeded", False)
+        )
 
-            except requests.exceptions.RequestException as e:
-                print(f" Failed. Request error: {e}")
-                failed_count += 1
-            except json.JSONDecodeError:
-                print("Failed. Could not decode server response.")
-                failed_count += 1
+        if succeeded:
+            print(" Done.")
+            deleted_count += 1
+        else:
+            print(" Failed.")
+            failed_count += 1
 
     print("\n--- Deletion Complete ---")
     print(f"Successfully deleted: {deleted_count} pages.")
     print(f"Failed to delete: {failed_count} pages.")
 
 
-def makePage(book_sections):
-    try:
-        with open(fullpath, "r", encoding="utf-8") as file:
-            queryString = file.read()
-            # print("Query string:", queryString)
+def create_wiki_pages(
+    nodes: List[Dict[str, Any]], create_page_mutation: str, parent_path: str = ""
+):
+    """
+    Traverse the document tree and create a wiki page for each section
+    """
+    for node in nodes:
+        title = node["title"]
+        content = node["content"]
+        current_slug = create_slug(title)
+        full_page_path = f"{parent_path}/{current_slug}"
 
-            print("Going to print the headings now.")
-            for heading, paragraphs in book_sections.items():
-                content = ""
-                content = "\n\n".join(paragraphs)
+        # Generate subjeading links
+        if node["children"]:
+            subheading_links = []
+            for child in node["children"]:
+                child_slug = create_slug(child["title"])
+                # Create a Markdown formatted link
+                child_path = f"/{LOCALE}{full_page_path}/{child_slug}"
+                subheading_links.append(f"- [{child['title']}]({child_path})")
 
-                print(f"Path: /{parse.quote(heading)}")
-                title = clean_heading(heading)
+            links_md = "\n".join(subheading_links)
+            # Append the list of links to the parent page content
+            content += f"\n\n---\n\n## Subsections:\n{links_md}"
 
-                # Make query variables object
-                variables = {
-                    "path": f"/{create_slug(title)}",
-                    "title": f"{title}",
-                    "description": f"Test {title} - is this thing on?",
-                    "locale": "en",
-                    "content": content,
-                    "editor": "markdown",
-                }
+        # Call the API to create the page
+        print(f"Creating page: '{title}' at path '{full_page_path}'")
+        variables = {
+            "path": full_page_path,
+            "title": title,
+            "description": f"Page for section {title}",
+            "locale": LOCALE,
+            "content": content,
+            "editor": "markdown",
+        }
 
-                payload = {"query": queryString, "variables": variables}
-                headers = {"Authorization": f"Bearer {API_TOKEN}"}
+        run_graphql_query(create_page_mutation, variables)
 
-                response = requests.post(API_URL, json=payload, headers=headers)
-
-                if response.status_code == 200:
-                    data = response.json()
-                    # print(json.dumps(data, indent=2))
-                    if "errors" in data:
-                        print(f"QraphQL error for '{heading}':")
-                        for err in data["errors"]:
-                            message = err.get("message", "Unknown error")
-                            print("    ->", message)
-                        continue
-                else:
-                    print(
-                        f"Error: {response.status_code} - {json.dumps(response.text, indent=2)}"
-                    )
-
-    except FileNotFoundError:
-        print(f"Error: The file '{fullpath}' was not found.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+        if node["children"]:
+            create_wiki_pages(
+                node["children"], create_page_mutation, parent_path=full_page_path
+            )
 
 
 def create_slug(text):
@@ -193,17 +162,61 @@ def create_slug(text):
     return text
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Populate wiki from DOCX file")
+    parser.add_argument(
+        "filepath", nargs="?", default=None, type=str, help="Path to the DOCX file"
+    )
     parser.add_argument(
         "--nuke",
         action="store_true",
         help="Delete all existing pages (except Home) before populating",
     )
+    parser.add_argument(
+        "--nuke-only",
+        action="store_true",
+        help="Delete all existing pages and do not populate the wiki",
+    )
     args = parser.parse_args()
 
-    if args.nuke:
-        nukeIt()
+    if args.nuke or args.nuke_only:
+        try:
+            list_pages_path = os.path.join(QUERIES_BASEPATH, LIST_PAGES_QUERY_FILE)
+            delete_page_path = os.path.join(QUERIES_BASEPATH, DELETE_PAGE_MUTATION_FILE)
 
-    docSections = parseBook.getSections("lebok.docx")
-    makePage(docSections)
+            with open(list_pages_path, "r") as f:
+                list_query = f.read()
+            with open(delete_page_path, "r") as f:
+                delete_mutation = f.read()
+
+            delete_all_pages(list_query, delete_mutation)
+        except FileNotFoundError as e:
+            print(f"Error: Could not find query file for deletion: {e.filename}")
+            sys.exit(1)
+
+        if args.nuke_only:
+            sys.exit(0)
+
+    if not args.filepath:
+        print("Error: filepath option required unless using --nuke-only")
+        sys.exit(1)
+
+    try:
+        create_page_path = os.path.join(QUERIES_BASEPATH, CREATE_PAGE_MUTATION_FILE)
+        with open(create_page_path, "r", encoding="utf-8") as file:
+            create_page_mutation = file.read()
+    except FileNotFoundError:
+        print(f"Error: The query file '{create_page_path}' was not found.")
+        sys.exit(1)
+
+    print(f"Parsing content from {args.filepath}...")
+    document_tree = parseBook.getSections(args.filepath)
+
+    print("Populating wiki...")
+    create_wiki_pages(document_tree, create_page_mutation)
+
+    print("\n--- Population Complete ---")
+
+
+if __name__ == "__main__":
+    main()
