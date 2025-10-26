@@ -1,5 +1,7 @@
 # Project specific
 *.docx
+*.jsonld
+*output.txt
 
 __pycache__
 *.py[cod]
@@ -62,7 +64,7 @@ ipython_config.py
 __pypackages__/
 
 # Environment
-.env
+.env*
 .venv
 env/
 venv/

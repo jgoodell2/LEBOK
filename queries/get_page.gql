@@ -1,0 +1,12 @@
+query getPage($path: String!, $locale: String!) {
+  pages {
+    singleByPath (path: $path, locale: $locale) {
+      path
+      title
+      description
+      content
+      createdAt
+      updatedAt
+    }
+  }
+}

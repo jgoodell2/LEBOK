@@ -6,15 +6,17 @@ import re
 
 
 def convert_docx_to_md(filepath: str) -> str:
-    """Convert a DOCX file to Markdown"""
+    """Converts a DOCX file to Markdown"""
+    style_map = "p[style-name='Title'] => doc-title:fresh"
     with open(filepath, "rb") as docx_file:
+        # result = mammoth.convert_to_markdown(docx_file, style_map=style_map)
         result = mammoth.convert_to_markdown(docx_file)
         markdown_text = result.value
         return markdown_text
 
 
 def strip_html_tags(text: str) -> str:
-    """Remove HTML tags and preserve inner text"""
+    """Removes HTML tags and preserve inner text"""
     return re.sub(r"<[^>]+>", "", text)
 
 
@@ -22,13 +24,39 @@ def clean_heading_text(text: str) -> str:
     # Unescape periods
     text = re.sub(r"\\(.)", r"\1", text)
 
+    text = text.strip()
+
+    # Strip markdown from the title
+    while True:
+        stripped = False
+        if (text.startswith("__") and text.endswith("__")) or (
+            text.startswith("**") and text.endswith("**")
+        ):
+            if len(text) > 4:  # Make sure it's not just "__"
+                text = text[2:-2].strip()
+                stripped = True
+            else:
+                break  # Stop if we just have "__" or "****"
+        elif (text.startswith("*") and text.endswith("*")) or (
+            text.startswith("_") and text.endswith("_")
+        ):
+            if len(text) > 2:  # Make sure it's not just "_"
+                text = text[1:-1].strip()
+                stripped = True
+            else:
+                break  # Stop if we just have "_" or "*"
+
+        # If we didn't strip anything this pass, we're done.
+        if not stripped:
+            break
+
     return text.strip()
 
 
-def extract_footnotes(md_text: str) -> (dict, str):
+def extract_footnotes(md_text: str) -> tuple[dict, str]:
     """
-    Find all footnote definitions, return them as a dictionary,
-    remove them from the main text
+    Finds all footnote definitions, returns them as a dictionary,
+    removes them from the main text
     """
     # Pattern for standard Markdown footnote, e.g., [^1]: Some text
     std_pattern = re.compile(r"^\[\^(\w+)\]:\s*(.*)", re.MULTILINE)
@@ -115,7 +143,7 @@ def inject_md_footnotes(nodes: List[Dict[str, Any]], all_footnotes: dict):
 
 def parse_document_tree(md_text: str) -> List[Dict[str, Any]]:
     """
-    Split markdown document text in a tree based on headings.
+    Splits markdown document text in a tree based on headings.
 
     Returns a list of sections:
     {
@@ -132,6 +160,26 @@ def parse_document_tree(md_text: str) -> List[Dict[str, Any]]:
 
     current_content_buffer: List[str] = []
     last_node = None
+
+    title_tag_pattern = re.compile(r"<doc-title>(.*?)</doc-title>", re.DOTALL)
+    title_match = title_tag_pattern.search(md_text)
+
+    if title_match:
+        # Extract the title, remove the tag
+        title_text = clean_heading_text(strip_html_tags(title_match.group(1)))
+        md_text = title_tag_pattern.sub("", md_text).strip()
+
+        if title_text:
+            title_node = {
+                "title": title_text,
+                "level": 0,
+                "content": "",
+                "children": [],
+            }
+
+            document_tree.append(title_node)
+            parents_stack.append(title_node)
+            last_node = title_node
 
     heading_pattern = re.compile(r"^(#{1,6})\s+(.*)$")
 
@@ -155,8 +203,12 @@ def parse_document_tree(md_text: str) -> List[Dict[str, Any]]:
             level = len(match.group(1))
             title = clean_heading_text(strip_html_tags(match.group(2).strip()))
 
+            # Skip untitled sections rather than create a stub
+            if not title:
+                continue
+
             new_node = {
-                "title": title or "Untitled Section",
+                "title": title,
                 "level": level,
                 "content": "",
                 "children": [],

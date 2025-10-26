@@ -15,8 +15,8 @@ load_dotenv()
 API_URL = os.getenv("API_URL")
 API_TOKEN = os.getenv("API_KEY")
 LOCALE = os.getenv("WIKI_LOCALE")
+QUERIES_BASEPATH = os.getenv("QUERIES_BASEPATH")
 
-QUERIES_BASEPATH = "queries"
 LIST_PAGES_QUERY_FILE = "list_pages.gql"
 CREATE_PAGE_MUTATION_FILE = "create_page.gql"
 DELETE_PAGE_MUTATION_FILE = "delete_page.gql"
@@ -163,6 +163,12 @@ def create_slug(text):
 
 
 def main():
+    if not all([API_URL, API_TOKEN, LOCALE, QUERIES_BASEPATH]):
+        print(
+            "Error: One or more required environment variables (API_URL, API_KEY, WIKI_LOCALE, QUERIES_BASEPATH) is not set."
+        )
+        sys.exit(1)
+
     parser = argparse.ArgumentParser(description="Populate wiki from DOCX file")
     parser.add_argument(
         "filepath", nargs="?", default=None, type=str, help="Path to the DOCX file"
