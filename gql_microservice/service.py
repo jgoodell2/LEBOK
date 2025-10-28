@@ -28,6 +28,39 @@ except FileNotFoundError:
     sys.exit(1)
 
 
+def get_name_from_slug(slug: str) -> str:
+    """
+    Reverses a slug back into a readable name
+    """
+    # Remove the reference code
+    slug = re.sub(r"^[\d-]+-", "", slug)
+
+    # Replace hyphens with spaces
+    name = slug.replace("-", " ")
+
+    # Transform it to title case
+    return name.title().strip()
+
+
+def get_topic_name(title: str, level_designator: str | None) -> str:
+    """
+    Extracts the Topic or Subtopic name from the title by removing the level code
+    """
+    if not title:
+        return ""
+
+    if level_designator:
+        remove_designator_pattern = re.compile(
+            r"^\s*" + re.escape(level_designator) + r"\s*", re.IGNORECASE
+        )
+        content = remove_designator_pattern.sub("", title, 1).strip()
+
+    else:
+        content = title.strip()
+
+    return content
+
+
 def get_level_designator(title: str) -> str | None:
     """
     Tries to find a dot notation competency level desginator (e.g. "1.1") in the title
@@ -53,9 +86,29 @@ def transform_to_ldjson(data):
     base_url = WIKI_URL
 
     title = page_data.get("title")
+    path = page_data.get("path", "")
     competencyLevel = get_level_designator(title)
+    description = page_data.get("content")
 
-    description = page_data.get("description")
+    # Get current page's base name
+    current_name = get_topic_name(title, competencyLevel)
+    is_subtopic = competencyLevel and (len(competencyLevel.split(".")) >= 3)
+
+    # Initial type label
+    type_label = current_name
+
+    if is_subtopic:
+        # Find parent's slug
+        path_parts = path.strip("/").split("/")
+
+        if len(path_parts) >= 2:
+            topic_slug = path_parts[1]
+
+            topic_name = get_name_from_slug(topic_slug)
+
+            # Build the final type label
+            if topic_name:
+                type_label = f"{topic_name} / {current_name}"
 
     ld_json = {
         "@context": {
@@ -102,12 +155,11 @@ def transform_to_ldjson(data):
         "@id": os.path.join(base_url, WIKI_LOCALE, page_data.get("path", "")),
         "scd:name": title,
         "scd:description": description,
-        "scd:typeLabel": description,
-        "articleBody": page_data.get("content"),
+        "scd:competencyDefinition": description,
+        "scd:typeLabel": type_label,
     }
 
     if competencyLevel:
-        ld_json["scd:competencyLevel"] = competencyLevel
         ld_json["scd:referenceCode"] = competencyLevel
 
     return ld_json
