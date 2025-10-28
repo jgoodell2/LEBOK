@@ -130,7 +130,7 @@ def create_wiki_pages(nodes: List[Dict[str, Any]], create_page_mutation: str):
         variables = {
             "path": full_page_path,
             "title": title,
-            "description": f"Page for section {title}",
+            "description": f"{title}",
             "locale": LOCALE,
             "content": content,
             "editor": "code",
