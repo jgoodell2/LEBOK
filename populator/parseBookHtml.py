@@ -32,22 +32,6 @@ def create_slug(text: str) -> str:
     return text
 
 
-# def build_slug_map(nodes: List[Dict[str, Any]]) -> Dict[str, str]:
-#     """
-#     Traverses the tree and builds a dictionary mapping section titles to their
-#     slugs
-#     """
-#     slug_map = {}
-#     for node in nodes:
-#         if node["title"] and node["slug"]:
-#             slug_map[node["title"]] = node["slug"]
-#
-#         if node["children"]:
-#             slug_map.update(build_slug_map(node["children"]))
-#
-#     return slug_map
-
-
 def extract_reference_code(text: str) -> str:
     """Extracts the leading reference code (e.g., '1.3.5') from a title."""
     if not text:
@@ -96,7 +80,7 @@ def build_nested_toc(nodes: List[Dict[str, Any]]) -> str:
 
 def convert_docx_to_html(filepath: str) -> str:
     """Converts a DOCX file to HTML"""
-    style_map = "p[style-name='Title'] => doc-title:fresh"
+    style_map = "p[style-name='Title'] => title-tag:fresh"
 
     with open(filepath, "rb") as docx_file:
         result = mammoth.convert_to_html(docx_file, style_map=style_map)
@@ -110,67 +94,6 @@ def convert_docx_to_html(filepath: str) -> str:
         # ---
 
         return html_text
-
-
-# def clean_toc(nodes: List[Dict[str, Any]], slug_map: Dict[str, str]):
-#     """
-#     Finds any node that looks like a Table of Contents and strips <strong>
-#     and <em> tags from its content field.
-#     Also removes page numbers from the link text.
-#     """
-#     # This regex matches one or more whitespace characters (\s+)
-#     # followed by one or more digits (\d+) at the end ($) of the string.
-#     page_num_pattern = re.compile(r"\s+\d+$")
-#
-#     for node in nodes:
-#         # Check if this node's content looks like a ToC
-#         if node["title"] == "Contents" and node["content"]:
-#             # Parse the HTML
-#             soup = BeautifulSoup(node["content"], "html.parser")
-#
-#             # Find and remove the styling tags
-#             for tag in soup.find_all(["strong", "em", "b", "i"]):
-#                 tag.unwrap()
-#
-#             # Remove trailing page numbers
-#             for link in soup.find_all("a"):
-#                 if link.string:
-#                     cleaned_text = page_num_pattern.sub("", link.string.strip())
-#                     link.string = cleaned_text
-#                     lookup_key = cleaned_text
-#
-#                     slug = None
-#
-#                     slug = slug_map.get(lookup_key)
-#
-#                     # Rewrite the href
-#                     if not slug:
-#                         ref_code = extract_reference_code(lookup_key)
-#
-#                         if ref_code:
-#                             # Search the slug map for a key that starts with the code
-#                             for map_key, map_slug in slug_map.items():
-#                                 if map_key.startswith(ref_code):
-#                                     slug = map_slug
-#                                     # Log this fuzzy match, it's good to know
-#                                     print(
-#                                         f"Info: Matched ToC entry '{lookup_key}' via code prefix '{ref_code}' to heading '{map_key}'."
-#                                     )
-#                                     break  # Found the first match, stop looking
-#
-#                     if slug:
-#                         link["href"] = f"{WIKI_URL}/{LOCALE}/{slug}"
-#                     else:
-#                         print(
-#                             f"Warning: No matching slug found for ToC entry: '{cleaned_text}'"
-#                         )
-#
-#             node["content"] = str(soup)
-#
-#             break
-#
-#         if node["children"]:
-#             clean_toc(node["children"], slug_map)
 
 
 def extract_footnotes(html_text: str) -> tuple[dict, str]:
@@ -302,14 +225,14 @@ def parse_document_tree(html_text: str) -> List[Dict[str, Any]]:
                 level = int(match.group(1))
                 title = element.get_text().strip()
 
-            elif element.name == "doc-title":
-                is_heading = True
-                title = element.get_text().strip()
-
-                if not parents_stack:
-                    level = 1
-                else:
-                    level = parents_stack[-1]["level"] + 1
+            # elif element.name == "title-tag":
+            #     is_heading = True
+            #     title = element.get_text().strip()
+            #
+            #     if not parents_stack:
+            #         level = 1
+            #     else:
+            #         level = parents_stack[-1]["level"] + 1
 
             if is_heading:
                 flush_buffer_to_node()
