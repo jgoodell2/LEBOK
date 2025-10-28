@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 import os
 import sys
 from typing import Dict, List, Any
-import parseBook
+import parseBookHtml
+import html
 
 load_dotenv()
 
@@ -49,14 +50,6 @@ def run_graphql_query(query: str, variables: Dict = None) -> Dict:
         print("  -> Error: Could not decode JSON response from the server.")
     # Return an empty dict on failure
     return {}
-
-
-def clean_heading(heading: str) -> str:
-    # Remove html tags
-    cleaned = re.sub(r"<[^>]+>", "", heading)
-
-    # Remove leading and trailing whitespace
-    return cleaned.strip()
 
 
 def delete_all_pages(list_query: str, delete_mutation: str):
@@ -100,30 +93,37 @@ def delete_all_pages(list_query: str, delete_mutation: str):
     print(f"Failed to delete: {failed_count} pages.")
 
 
-def create_wiki_pages(
-    nodes: List[Dict[str, Any]], create_page_mutation: str, parent_path: str = ""
-):
+def create_wiki_pages(nodes: List[Dict[str, Any]], create_page_mutation: str):
     """
     Traverse the document tree and create a wiki page for each section
     """
     for node in nodes:
         title = node["title"]
         content = node["content"]
-        current_slug = create_slug(title)
-        full_page_path = f"{parent_path}/{current_slug}"
+        # current_slug = create_slug(title)
+        # if parent_path:
+        #     full_page_path = f"{parent_path.strip('/')}/{current_slug}"
+        # else:
+        #     full_page_path = current_slug
 
-        # Generate subjeading links
+        full_page_path = node["slug"]
+
+        # Generate subheading links
         if node["children"]:
             subheading_links = []
             for child in node["children"]:
-                child_slug = create_slug(child["title"])
-                # Create a Markdown formatted link
-                child_path = f"/{LOCALE}{full_page_path}/{child_slug}"
-                subheading_links.append(f"- [{child['title']}]({child_path})")
+                child_full_slug = child["slug"]
+                # Use the full path for the link
+                child_path = f"/{LOCALE}/{child_full_slug}"
+                # Sanitize the title
+                sanitized_title = html.escape(child["title"])
+                subheading_links.append(
+                    f'<li><a href="{child_path}">{sanitized_title}</a></li>'
+                )
 
-            links_md = "\n".join(subheading_links)
+            links_list = "\n".join(subheading_links)
             # Append the list of links to the parent page content
-            content += f"\n\n---\n\n## Subsections:\n{links_md}"
+            content += f"\n<hr>\n<h2>Subsections:</h2>\n<ul>\n{links_list}\n</ul>"
 
         # Call the API to create the page
         print(f"Creating page: '{title}' at path '{full_page_path}'")
@@ -133,15 +133,13 @@ def create_wiki_pages(
             "description": f"Page for section {title}",
             "locale": LOCALE,
             "content": content,
-            "editor": "markdown",
+            "editor": "code",
         }
 
         run_graphql_query(create_page_mutation, variables)
 
         if node["children"]:
-            create_wiki_pages(
-                node["children"], create_page_mutation, parent_path=full_page_path
-            )
+            create_wiki_pages(node["children"], create_page_mutation)
 
 
 def create_slug(text):
@@ -216,7 +214,7 @@ def main():
         sys.exit(1)
 
     print(f"Parsing content from {args.filepath}...")
-    document_tree = parseBook.getSections(args.filepath)
+    document_tree = parseBookHtml.get_sections(args.filepath)
 
     print("Populating wiki...")
     create_wiki_pages(document_tree, create_page_mutation)

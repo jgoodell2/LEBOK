@@ -7,11 +7,17 @@ import re
 
 def convert_docx_to_md(filepath: str) -> str:
     """Converts a DOCX file to Markdown"""
-    style_map = "p[style-name='Title'] => doc-title:fresh"
+    style_map = "p[style-name='Title'] => text:fresh"
+    # style_map = "p => debug-p:fresh"
     with open(filepath, "rb") as docx_file:
         # result = mammoth.convert_to_markdown(docx_file, style_map=style_map)
         result = mammoth.convert_to_markdown(docx_file)
         markdown_text = result.value
+        # Let's print the raw output *before* parsing
+        print("\n--- RAW MAMMOTH OUTPUT ---")
+        print(markdown_text)
+        print("--- END RAW OUTPUT ---\n")
+        # ---
         return markdown_text
 
 
@@ -251,6 +257,29 @@ def getSections(filepath: str) -> List[Dict[str, Any]]:
     return sections
 
 
+def print_markdown_document(nodes: List[Dict[str, Any]]):
+    """
+    Recursively prints the full Markdown document from the node tree.
+    """
+    for node in nodes:
+        # Level 0 (Title) doesn't have a '#' in standard markdown,
+        # but we'll use H1 for it.
+        if node["level"] == 0:
+            print(f"# {node['title']}\n")
+        else:
+            # Print the heading (e.g., '## My Title')
+            heading_prefix = "#" * node["level"]
+            print(f"{heading_prefix} {node['title']}\n")
+
+        # Print the content for that section
+        if node["content"]:
+            print(f"{node['content']}\n")
+
+        # Recursively print all children nodes
+        if node["children"]:
+            print_markdown_document(node["children"])
+
+
 if __name__ == "__main__":
     filepath = "lebok.docx"
     sections = getSections(filepath)
@@ -270,4 +299,5 @@ if __name__ == "__main__":
             if node["children"]:
                 print_tree(node["children"], indent + "  ")
 
-    print_tree(sections)
+    # print_tree(sections)
+    print_markdown_document(sections)
