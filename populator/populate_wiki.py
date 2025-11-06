@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import os
 import sys
 from typing import Dict, List, Any
-import parseBookHtml
+import parse_book
 import html
 
 load_dotenv()
@@ -214,7 +214,7 @@ def main():
         sys.exit(1)
 
     print(f"Parsing content from {args.filepath}...")
-    document_tree = parseBookHtml.get_sections(args.filepath)
+    document_tree = parse_book.get_sections(args.filepath)
 
     print("Populating wiki...")
     create_wiki_pages(document_tree, create_page_mutation)
