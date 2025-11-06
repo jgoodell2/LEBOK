@@ -1,5 +1,5 @@
 upstream web_server {
-    server 127.0.0.1:80; # Replace with wikijs website address
+    server 127.0.0.1:8080; # Replace with wikijs website address
 }
 
 upstream graphql_handler {
@@ -13,7 +13,7 @@ map $http_accept $target_backend {
 }
 
 server {
-    listen 8080;
+    listen 80;
     
     location / {
 	# Forward the request to the backend selected by the map
