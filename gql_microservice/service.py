@@ -63,17 +63,31 @@ def get_topic_name(title: str, level_designator: str | None) -> str:
 
 def get_level_designator(title: str) -> str | None:
     """
-    Tries to find a dot notation competency level desginator (e.g. "1.1") in the title
+    Tries to find a competency level designator and return its primary level.
+    e.g., "1.1: ..." -> "1"
+    e.g., "Knowledge Area 1" -> "1"
     """
-    # Regex to find a pattern like "1.1" or "2.4" or the like
-    pattern = r"(\d+(\.\d+)+)"
+    # Regex to find:
+    # 1. (^\s*(\d+(?:\.\d+)*)): A number at the *start* of the string.
+    #    We capture the entire number (e.g., "1.1") in group 1.
+    # 2. |: OR
+    # 3. ((\d+(?:\.\d+)*)\s*(?=:|$)): A number at the *end* of the string,
+    #    OR a number that is immediately followed by a colon.
+    #    We capture the entire number (e.g., "1" or "1.1") in group 2.
 
-    # Find the pattern at the beginning of the title
-    title_match = re.search(r"^\s*" + pattern, title)
+    pattern = r"^\s*(\d+(?:\.\d+)*)|(\d+(?:\.\d+)*)\s*(?=:|$)"
+    title_match = re.search(pattern, title)
+
     if title_match:
-        return title_match.group(1)
+        # Check which capture group was successful.
+        # group(1) is the number at the start.
+        # group(2) is the number at the end.
+        if title_match.group(1):
+            return title_match.group(1)
+        if title_match.group(2):
+            return title_match.group(2)
 
-    # Return None if not found in the title
+    # Return None if not found
     return None
 
 
@@ -90,25 +104,18 @@ def transform_to_ldjson(data):
     competencyLevel = get_level_designator(title)
     description = page_data.get("content")
 
-    # Get current page's base name
-    current_name = get_topic_name(title, competencyLevel)
+    # Get type label
+    is_knowledge_area = competencyLevel and (len(competencyLevel.split(".")) == 1)
+    is_topic = competencyLevel and (len(competencyLevel.split(".")) == 2)
     is_subtopic = competencyLevel and (len(competencyLevel.split(".")) >= 3)
 
     # Initial type label
-    type_label = current_name
-
-    if is_subtopic:
-        # Find parent's slug
-        path_parts = path.strip("/").split("/")
-
-        if len(path_parts) >= 2:
-            topic_slug = path_parts[1]
-
-            topic_name = get_name_from_slug(topic_slug)
-
-            # Build the final type label
-            if topic_name:
-                type_label = f"{topic_name} / {current_name}"
+    if is_knowledge_area:
+        type_label = "Knowledge Area"
+    elif is_topic:
+        type_label = "Topic"
+    elif is_subtopic:
+        type_label = "Subtopic"
 
     ld_json = {
         "@context": {
