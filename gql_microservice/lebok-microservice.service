@@ -1,0 +1,12 @@
+[Unit]
+Description=Gunicorn instance to serve LEBOK JSON+LD microservice
+After=network.target
+
+[Service]
+User=lebok
+WorkingDirectory=/opt/lebok-microservice/
+Environment="PATH=/opt/lebok-microservice/lebok-env/bin"
+ExecStart=/opt/lebok-microservice/lebok-env/bin/gunicorn --workers 2 --bind 127.0.0.1:9000 -m 007 service:app
+
+[Install]
+WantedBy=multi-user.target
