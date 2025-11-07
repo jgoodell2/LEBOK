@@ -3,9 +3,12 @@ set -e # Exit immediately if any command fails
 
 # User and path definitions
 SERVICE_USER="lebok"
+SERVICE_NAME="lebok-microservice"
 DEV_REPO_PATH="/home/natou/LEBOK" # <-- !! Set this to the path where you cloned the repo
 PROD_PATH="/opt/lebok-microservice"
 VENV_PATH="$PROD_PATH/lebok-env"
+SERVICE_FILE_SOURCE="$DEV_REPO_PATH/$SERVICE_NAME.service"
+SERVICE_FILE_DEST="/etc/systemd/system/$SERVICE_NAME.service"
 
 echo ">>> Checking for system user '$SERVICE_USER'..."
 if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
@@ -28,7 +31,7 @@ git pull
 echo ">>> Syncing files to production..."
 
 # Sync the microservice, deleting old files within this dir
-sudo rsync -av --delete \
+sudo rsync -av \
     "$DEV_REPO_PATH/gql_microservice/" \
     "$PROD_PATH/"
 
@@ -44,6 +47,14 @@ sudo rsync -av \
 
 # Ensure 'lebok' still owns all the new/updated files
 sudo chown -R lebok: "$PROD_PATH/"
+
+echo ">>> Installing systemd service..."
+# Force-create the symlink from the repo file to the systemd directory
+sudo ln -sf "$SERVICE_FILE_SOURCE" "$SERVICE_FILE_DEST"
+
+# Reload systemd
+echo "    -> Reloading systemd daemon..."
+sudo systemctl daemon-reload
 
 echo ">>> Checking for virtual environment..."
 if [ ! -d "$VENV_PATH" ]; then
