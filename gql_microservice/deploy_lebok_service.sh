@@ -7,7 +7,7 @@ SERVICE_NAME="lebok-microservice"
 DEV_REPO_PATH="/home/natou/LEBOK" # <-- !! Set this to the path where you cloned the repo
 PROD_PATH="/opt/lebok-microservice"
 VENV_PATH="$PROD_PATH/lebok-env"
-SERVICE_FILE_SOURCE="$DEV_REPO_PATH/$SERVICE_NAME.service"
+SERVICE_FILE_SOURCE="$PROD_PATH/$SERVICE_NAME.service"
 SERVICE_FILE_DEST="/etc/systemd/system/$SERVICE_NAME.service"
 
 echo ">>> Checking for system user '$SERVICE_USER'..."
