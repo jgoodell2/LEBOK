@@ -69,7 +69,7 @@ fi
 
 echo ">>> Installing/checking dependencies..."
 # Run pip install as the lebok user
-sudo -u lebok "$PROD_PATH/lebok-env/bin/pip" install -r "$PROD_PATH/requirements.txt"
+sudo -u lebok "$PROD_PATH/lebok-env/bin/pip" --no-cache-dir install -r "$PROD_PATH/requirements.txt"
 
 echo ">>> Restarting the service..."
 sudo systemctl restart lebok-microservice
