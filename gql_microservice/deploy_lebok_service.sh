@@ -32,6 +32,8 @@ echo ">>> Syncing files to production..."
 
 # Sync the microservice, deleting old files within this dir
 sudo rsync -av --exclude='.env' \
+    --exclude "deploy_lebok_service.sh" \
+    --exclude "__pycache__/" \
     "$DEV_REPO_PATH/gql_microservice/" \
     "$PROD_PATH/"
 
