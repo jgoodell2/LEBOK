@@ -172,18 +172,18 @@ def main():
         "filepath", nargs="?", default=None, type=str, help="Path to the DOCX file"
     )
     parser.add_argument(
-        "--nuke",
+        "--purge",
         action="store_true",
         help="Delete all existing pages (except Home) before populating",
     )
     parser.add_argument(
-        "--nuke-only",
+        "--purge-only",
         action="store_true",
         help="Delete all existing pages and do not populate the wiki",
     )
     args = parser.parse_args()
 
-    if args.nuke or args.nuke_only:
+    if args.purge or args.purge_only:
         try:
             list_pages_path = os.path.join(QUERIES_BASEPATH, LIST_PAGES_QUERY_FILE)
             delete_page_path = os.path.join(QUERIES_BASEPATH, DELETE_PAGE_MUTATION_FILE)
@@ -198,7 +198,7 @@ def main():
             print(f"Error: Could not find query file for deletion: {e.filename}")
             sys.exit(1)
 
-        if args.nuke_only:
+        if args.purge_only:
             sys.exit(0)
 
     if not args.filepath:
