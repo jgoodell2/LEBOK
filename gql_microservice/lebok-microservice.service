@@ -4,6 +4,7 @@ After=network.target
 
 [Service]
 User=lebok
+Group=nogroup
 WorkingDirectory=/opt/lebok-microservice/
 Environment="PATH=/opt/lebok-microservice/lebok-env/bin"
 ExecStart=/opt/lebok-microservice/lebok-env/bin/gunicorn --workers 2 --bind 127.0.0.1:9000 -m 007 service:app
