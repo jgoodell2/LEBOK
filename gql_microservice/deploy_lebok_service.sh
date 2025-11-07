@@ -31,7 +31,7 @@ git pull
 echo ">>> Syncing files to production..."
 
 # Sync the microservice, deleting old files within this dir
-sudo rsync -av \
+sudo rsync -av --exclude='.env' \
     "$DEV_REPO_PATH/gql_microservice/" \
     "$PROD_PATH/"
 
