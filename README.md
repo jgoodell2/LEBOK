@@ -20,13 +20,16 @@ The script converts a structured Word document into a series of nested wiki page
 1. `populator/`: Contains the main python scripts for parsing the document and populating the wiki.
    - `populate_wiki.py`: The main script. Calls a module to parse the document and then creates pages on Wiki.js.
    - `parse_book.py`: Handles the DOCX-to-HTML conversion and document tree parsing.
+
 2. `gql_microservice/`:
    - `service.py`: A Flask microservice that fetches page data from Wiki.js and repackages it as LD+JSON.
+
 3. `queries/`: Stores the GraphQL query and mutation files used to interact with the Wiki.js API.
    - `create_page.gql`: Mutation to create a new wiki page.
    - `delte_page.gql`: Mutation to delete a page by its ID.
    - `get_page.gql`: Query to retrieve a single page's content (based on its path).
    - `list_pages.gql`: Lists all pages.
+
 4. `nginx-conf/`:
    - `gql-service`: An Nginx server block configuration to reverse proxy the Wiki.js website. It is configured to route requests to the Flask microservice if the `Accept` header is `application/json+ld` or `application/json`, or to Wiki.js otherwise.
 
