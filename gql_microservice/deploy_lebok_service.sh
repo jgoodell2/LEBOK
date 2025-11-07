@@ -16,6 +16,11 @@ else
     echo "    -> User already exists."
 fi
 
+echo ">>> Ensuring production directory exists..."
+sudo mkdir -p "$PROD_PATH"
+# Set ownership on the main dir so rsync can write
+sudo chown "$SERVICE_USER": "$PROD_PATH"
+
 echo ">>> Pulling latest code into $DEV_REPO_PATH..."
 cd $DEV_REPO_PATH
 git pull
