@@ -30,7 +30,7 @@ echo ">>> Syncing files to production..."
 # Sync the microservice, deleting old files within this dir
 sudo rsync -av --delete \
     "$DEV_REPO_PATH/gql_microservice/" \
-    "$PROD_PATH/gql_microservice/"
+    "$PROD_PATH/"
 
 # Sync the queries, deleting old files within this dir
 sudo rsync -av --delete \
