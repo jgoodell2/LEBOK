@@ -10,6 +10,7 @@ colorama==0.4.6
 diff_cover==9.7.1
 dotenv==0.9.9
 Flask==3.1.2
+gunicorn==23.0.0
 idna==3.10
 iniconfig==2.3.0
 itsdangerous==2.2.0
