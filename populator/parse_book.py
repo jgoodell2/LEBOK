@@ -6,8 +6,11 @@ import re
 from bs4 import BeautifulSoup, NavigableString, Tag
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+script_dir = Path(__file__).resolve().parent
+dotenv_path = script_dir.parent / ".env"
+load_dotenv(dotenv_path)
 
 LOCALE = os.getenv("WIKI_LOCALE")
 WIKI_URL = os.getenv("WIKI_URL")

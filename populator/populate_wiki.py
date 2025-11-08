@@ -10,13 +10,20 @@ import sys
 from typing import Dict, List, Any
 import parse_book
 import html
+from pathlib import Path
 
-load_dotenv()
+script_dir = Path(__file__).resolve().parent
+dotenv_path = script_dir.parent / ".env"
+load_dotenv(dotenv_path)
+
+project_root = dotenv_path.parent
 
 API_URL = os.getenv("API_URL")
 API_TOKEN = os.getenv("API_KEY")
 LOCALE = os.getenv("WIKI_LOCALE")
-QUERIES_BASEPATH = os.getenv("QUERIES_BASEPATH")
+
+queries_path_relative = os.getenv("QUERIES_BASEPATH")
+QUERIES_BASEPATH = (project_root / queries_path_relative).resolve()
 
 LIST_PAGES_QUERY_FILE = "list_pages.gql"
 CREATE_PAGE_MUTATION_FILE = "create_page.gql"
