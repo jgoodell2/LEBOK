@@ -304,16 +304,33 @@ def get_sections(filepath: str) -> List[Dict[str, Any]]:
     html_text = convert_docx_to_html(filepath)
     footnotes, cleaned_html = extract_footnotes(html_text)
     sections = parse_document_tree(cleaned_html)
+    sections = [node for node in sections if node["title"] != "Contents"]
 
     # slug_map = build_slug_map(sections)
     #
     # clean_toc(sections, slug_map)
 
     nested_toc_html = build_nested_toc(sections)
-    for node in sections:
-        if node["title"] == "Contents":
-            node["content"] = nested_toc_html
-            break
+
+    # Create the homepage and put the table of contents in it
+    homepage_content = f"<hr><h1>Table of Contents</h1>\n{nested_toc_html}"
+    home_node = {
+        "title": "Learning Engineering Body of Knowledge",
+        "level": 1,
+        "slug": "home",
+        "content": homepage_content,
+        "children": [],
+    }
+
+    # Insert the home node at the beginning of the list
+    sections.insert(0, home_node)
+
+    # for node in sections:
+    #     if node["slug"] == "home":
+    #         node["content"] = (
+    #             f"{node['content']}\n<hr><h1>Table of Contents</h1>\n{nested_toc_html}"
+    #         )
+    #         break
 
     if footnotes:
         inject_html_footnotes(sections, footnotes)
