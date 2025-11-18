@@ -1,0 +1,12 @@
+mutation createTree($tree :[NavigationTreeInput]!) {
+  navigation {
+    updateTree(tree: $tree) {
+      responseResult {
+      succeeded
+      errorCode
+      slug
+      message
+      }
+    }
+  }
+}

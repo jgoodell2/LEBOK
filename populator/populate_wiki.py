@@ -11,6 +11,7 @@ from typing import Dict, List, Any
 import parse_book
 import html
 from pathlib import Path
+from wikinav import create_navlinks
 
 script_dir = Path(__file__).resolve().parent
 dotenv_path = script_dir.parent / ".env"
@@ -28,6 +29,7 @@ QUERIES_BASEPATH = (project_root / queries_path_relative).resolve()
 LIST_PAGES_QUERY_FILE = "list_pages.gql"
 CREATE_PAGE_MUTATION_FILE = "create_page.gql"
 DELETE_PAGE_MUTATION_FILE = "delete_page.gql"
+CREATE_NAV_MUTATION_FILE = "update_navigation.gql"
 
 
 def run_graphql_query(query: str, variables: Dict = None) -> Dict:
@@ -98,6 +100,33 @@ def delete_all_pages(list_query: str, delete_mutation: str):
     print("\n--- Deletion Complete ---")
     print(f"Successfully deleted: {deleted_count} pages.")
     print(f"Failed to delete: {failed_count} pages.")
+
+
+def create_navigation(nav_items: List[Dict[str, Any]]):
+    try:
+        create_nav_mutation_path = os.path.join(
+            QUERIES_BASEPATH, CREATE_NAV_MUTATION_FILE
+        )
+
+        with open(create_nav_mutation_path, "r") as f:
+            make_navbar = f.read()
+
+        variables = {"tree": [{"locale": LOCALE, "items": nav_items}]}
+        response_data = run_graphql_query(make_navbar, variables)
+
+        print(json.dumps(response_data, indent=4))
+
+        # succeeded = (
+        #     response_data.get("data", {})
+        #     .get("pages", {})
+        #     .get("delete", {})
+        #     .get("responseResult", {})
+        #     .get("succeeded", False)
+        # )
+
+    except FileNotFoundError as e:
+        print(f"Error: Could not find mutation file for making navlinks: {e.filename}")
+        sys.exit(1)
 
 
 def create_wiki_pages(nodes: List[Dict[str, Any]], create_page_mutation: str):
@@ -222,6 +251,11 @@ def main():
 
     print(f"Parsing content from {args.filepath}...")
     document_tree = parse_book.get_sections(args.filepath)
+    nav_items = create_navlinks(document_tree)
+    # print(json.dumps(nav_items, indent=4))
+
+    print("Making navlinks...")
+    create_navigation(nav_items)
 
     print("Populating wiki...")
     create_wiki_pages(document_tree, create_page_mutation)
