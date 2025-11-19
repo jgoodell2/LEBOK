@@ -349,13 +349,12 @@ def main():
     print(f"Parsing content from {args.filepath}...")
     document_tree = parse_book.get_sections(args.filepath)
     nav_items = create_navlinks(document_tree)
-    # print(json.dumps(nav_items, indent=4))
-
-    print("Making navlinks...")
-    create_navigation(nav_items)
 
     print("Populating wiki...")
     create_wiki_pages(document_tree, create_page_mutation, do_replace)
+
+    print("Making navlinks...")
+    create_navigation(nav_items)
 
     print("\n--- Population Complete ---")
 
