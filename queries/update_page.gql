@@ -1,0 +1,28 @@
+mutation updatePage ($id: Int!, $path: String!, $title: String!, $description: String!, $editor: String!, $locale: String!, $content: String!) {
+  pages {
+    update(
+      id: $id,
+      path: $path,
+      title: $title,
+      locale: $locale,
+      content: $content
+      description: $description,
+      editor: $editor,
+      isPublished: true,
+      isPrivate: false,
+      tags: [],
+    ) {
+      responseResult {
+      succeeded
+      errorCode
+      slug
+      message
+    }
+    page {
+      id
+      path
+      title
+    }
+    }
+  }
+}
