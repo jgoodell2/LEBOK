@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import requests
 import json
-from urllib import parse
 import re
 import argparse
 from dotenv import load_dotenv
@@ -27,6 +26,8 @@ queries_path_relative = os.getenv("QUERIES_BASEPATH")
 QUERIES_BASEPATH = (project_root / queries_path_relative).resolve()
 
 LIST_PAGES_QUERY_FILE = "list_pages.gql"
+GET_PAGE_QUERY_FILE = "get_page.gql"
+UPDATE_PAGE_MUTATION_FILE = "update_page.gql"
 CREATE_PAGE_MUTATION_FILE = "create_page.gql"
 DELETE_PAGE_MUTATION_FILE = "delete_page.gql"
 CREATE_NAV_MUTATION_FILE = "update_navigation.gql"
@@ -62,7 +63,7 @@ def run_graphql_query(query: str, variables: Dict = None) -> Dict:
 
 
 def delete_all_pages(list_query: str, delete_mutation: str):
-    """Gets all page ids and deletes the associated pages, except for the homepage"""
+    """Gets all page ids and deletes the associated pages"""
     print("Getting all page ids...")
     response_data = run_graphql_query(list_query)
     pages = response_data.get("data", {}).get("pages", {}).get("list", [])
@@ -76,8 +77,8 @@ def delete_all_pages(list_query: str, delete_mutation: str):
     deleted_count, failed_count = 0, 0
 
     for page in pages:
-        if page["path"] == "home":
-            continue
+        # if page["path"] == "home":
+        #     continue
 
         print(f"Deleting page '{page['path']}' (ID: {page['id']})...", end="")
         delete_response = run_graphql_query(delete_mutation, {"id": page["id"]})
@@ -100,6 +101,72 @@ def delete_all_pages(list_query: str, delete_mutation: str):
     print("\n--- Deletion Complete ---")
     print(f"Successfully deleted: {deleted_count} pages.")
     print(f"Failed to delete: {failed_count} pages.")
+
+
+def get_page(path: str):
+    """
+    Get a page by its path.
+    """
+    try:
+        get_page_query_path = os.path.join(QUERIES_BASEPATH, GET_PAGE_QUERY_FILE)
+
+        with open(get_page_query_path, "r") as f:
+            get_page_q = f.read()
+
+            variables = {"path": path, "locale": LOCALE}
+
+            response = run_graphql_query(get_page_q, variables)
+            return response.get("data", {}).get("pages", {}).get("singleByPath")
+    except FileNotFoundError as e:
+        print(f"Error: Could not find query file for getting a page: {e.filename}")
+
+
+def update_page(id: int, content: str):
+    """
+    Update a page's content given its id.
+    """
+    try:
+        update_page_mutation_path = os.path.join(
+            QUERIES_BASEPATH, UPDATE_PAGE_MUTATION_FILE
+        )
+
+        with open(update_page_mutation_path) as f:
+            update_page_m = f.read()
+
+            variables = {
+                "id": id,
+                "content": content,
+            }
+
+            return run_graphql_query(update_page_m, variables)
+    except FileNotFoundError as e:
+        print(f"Error: Could not find mutation file for updating a page: {e.filename}")
+
+
+def delete_page(id: int) -> bool:
+    """
+    Delete a page, referencing it by its id.
+    """
+    try:
+        delete_page_mutation_path = os.path.join(
+            QUERIES_BASEPATH, DELETE_PAGE_MUTATION_FILE
+        )
+
+        with open(delete_page_mutation_path, "r") as f:
+            delete_mutation = f.read()
+
+        response = run_graphql_query(delete_mutation, {"id": id})
+
+        return (
+            response.get("data", {})
+            .get("pages", {})
+            .get("delete", {})
+            .get("responseResult", {})
+            .get("succeeded", False)
+        )
+    except FileNotFoundError as e:
+        print(f"Error: Could not find mutation to delete a page: {e.filename}")
+        return False
 
 
 def create_navigation(nav_items: List[Dict[str, Any]]):
@@ -129,7 +196,9 @@ def create_navigation(nav_items: List[Dict[str, Any]]):
         sys.exit(1)
 
 
-def create_wiki_pages(nodes: List[Dict[str, Any]], create_page_mutation: str):
+def create_wiki_pages(
+    nodes: List[Dict[str, Any]], create_page_mutation: str, do_replace: bool = False
+):
     """
     Traverse the document tree and create a wiki page for each section
     """
@@ -161,6 +230,20 @@ def create_wiki_pages(nodes: List[Dict[str, Any]], create_page_mutation: str):
             # Append the list of links to the parent page content
             content += f"\n<hr>\n<h2>Subsections:</h2>\n<ul>\n{links_list}\n</ul>"
 
+        # Delete existing page if replacement flag is set
+        if do_replace:
+            print(f"Deleting page '{full_page_path}'...", end="")
+            page_info = get_page(full_page_path)
+
+            if page_info and "id" in page_info:
+                page_id = page_info["id"]
+                # print(f"Deleting page '{full_page_path}' (ID: {page_id})...", end="")
+
+                if delete_page(page_id):
+                    print("Done.")
+                else:
+                    print("Failed (API error).")
+
         # Call the API to create the page
         print(f"Creating page: '{title}' at path '{full_page_path}'")
         variables = {
@@ -175,7 +258,7 @@ def create_wiki_pages(nodes: List[Dict[str, Any]], create_page_mutation: str):
         run_graphql_query(create_page_mutation, variables)
 
         if node["children"]:
-            create_wiki_pages(node["children"], create_page_mutation)
+            create_wiki_pages(node["children"], create_page_mutation, do_replace)
 
 
 def create_slug(text):
@@ -207,16 +290,26 @@ def main():
     parser.add_argument(
         "filepath", nargs="?", default=None, type=str, help="Path to the DOCX file"
     )
-    parser.add_argument(
+
+    group = parser.add_mutually_exclusive_group()
+
+    group.add_argument(
         "--purge",
         action="store_true",
-        help="Delete all existing pages (except Home) before populating",
+        help="Delete all existing pages before populating",
     )
-    parser.add_argument(
+    group.add_argument(
         "--purge-only",
         action="store_true",
         help="Delete all existing pages and do not populate the wiki",
     )
+
+    group.add_argument(
+        "--replace",
+        action="store_true",
+        help="Delete a page (if it exists) before creating it on the wiki",
+    )
+
     args = parser.parse_args()
 
     if args.purge or args.purge_only:
@@ -236,6 +329,10 @@ def main():
 
         if args.purge_only:
             sys.exit(0)
+
+    do_replace = False
+    if args.replace:
+        do_replace = True
 
     if not args.filepath:
         print("Error: filepath option required unless using --nuke-only")
@@ -258,10 +355,14 @@ def main():
     create_navigation(nav_items)
 
     print("Populating wiki...")
-    create_wiki_pages(document_tree, create_page_mutation)
+    create_wiki_pages(document_tree, create_page_mutation, do_replace)
 
     print("\n--- Population Complete ---")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nProcess cancelled by user. Exiting.")
+        sys.exit(0)
