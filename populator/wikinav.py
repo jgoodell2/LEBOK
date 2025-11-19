@@ -13,7 +13,7 @@ LOCALE = os.getenv("WIKI_LOCALE")
 
 
 def is_home(node: Dict[str, Any]):
-    return node["slug"].startswith("/home")
+    return node["slug"].startswith("home")
 
 
 def is_glossary(node: Dict[str, Any]):
@@ -27,6 +27,16 @@ def is_knowledge_area(node: Dict[str, Any]):
     return node["level"] == 1 and node["title"].startswith("Knowledge Area")
 
 
+def get_link_icon(node: Dict[str, Any]) -> str:
+    """Assigns icon based on hierarchy and slug."""
+    if node["slug"].startswith("home"):
+        return "mdi-home"
+    elif node["children"]:
+        return "mdi-folder"
+    else:
+        return "mdi-text-box"
+
+
 def create_nav_item(node: Dict[str, Any]):
     """
     Map a node to a navlink item
@@ -34,8 +44,8 @@ def create_nav_item(node: Dict[str, Any]):
     return {
         "id": node["slug"],
         "kind": "link",
-        "label": node["title"],
-        "icon": "mdi-folder" if node["children"] else "mdi-text-box",
+        "label": "Home" if node["slug"].startswith("home") else node["title"],
+        "icon": get_link_icon(node),
         "targetType": "page",
         "target": f"/{LOCALE}/{node['slug']}",
         "visibilityMode": "all",
@@ -80,6 +90,7 @@ def create_navlinks(nodes: List[Dict[str, Any]]) -> List:
     Create a list of links to be shown in the navigation sidebar.
     """
 
+    home = map(create_nav_item, filter(is_home, nodes))
     knowledge_areas = map(create_nav_item, filter(is_knowledge_area, nodes))
     glossary = map(create_nav_item, filter(is_glossary, nodes))
 
@@ -88,13 +99,15 @@ def create_navlinks(nodes: List[Dict[str, Any]]) -> List:
     everything_else = (
         create_nav_item(node)
         for node in nodes
-        if not is_knowledge_area(node)
+        if not is_home(node)
+        and not is_knowledge_area(node)
         and not is_glossary(node)
         and node["content"] != ""
     )
 
     return (
-        [create_nav_header("Introduction"), create_divider()]
+        list(home)
+        + [create_nav_header("Introduction"), create_divider()]
         + list(everything_else)
         + [create_nav_header("Knowledge Areas"), create_divider()]
         + list(knowledge_areas)
