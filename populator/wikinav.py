@@ -31,8 +31,6 @@ def get_link_icon(node: Dict[str, Any]) -> str:
     """Assigns icon based on hierarchy and slug."""
     if node["slug"].startswith("home"):
         return "mdi-home"
-    elif node["children"]:
-        return "mdi-folder"
     else:
         return "mdi-text-box"
 
