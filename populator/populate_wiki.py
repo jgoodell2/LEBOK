@@ -195,7 +195,21 @@ def create_navigation(nav_items: List[Dict[str, Any]]):
         variables = {"tree": [{"locale": LOCALE, "items": nav_items}]}
         response_data = run_graphql_query(make_navbar, variables)
 
-        print(json.dumps(response_data, indent=4))
+        result = (
+            response_data.get("data", {})
+            .get("navigation", {})
+            .get("updateTree", {})
+            .get("responseResult", {})
+        )
+
+        if result.get("succeeded"):
+            print("Done.")
+        else:
+            print(" Failed.")
+            msg = result.get("message", "Unknown error")
+            print(f"  -> Error: {msg}")
+
+        # print(json.dumps(response_data, indent=4))
 
         # succeeded = (
         #     response_data.get("data", {})
@@ -462,7 +476,7 @@ def main():
         document_tree, create_page_mutation, do_replace, do_update, nav_map
     )
 
-    print("Making navlinks...")
+    print("Making navlinks...", end="")
     create_navigation(nav_items)
 
     print("\n--- Population Complete ---")
