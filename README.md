@@ -116,50 +116,51 @@ QUERIES_BASEPATH=./queries
 
 2. ### Running the LD+JSON Microservice
 
-        The Flask microservice runs as a separate program. When it receives a request
-        for a wiki page, it queries the Wiki.js API and returns the page as LD+JSON
-        data.
+    The Flask microservice runs as a separate program. When it receives a request
+    for a wiki page, it queries the Wiki.js API and returns the page as LD+JSON
+    data.
 
-        You can run it locally for development or deploy it to production.
+    You can run it locally for development or deploy it to production.
 
-        #### Running Locally
+    #### Running Locally
 
-        For development, you can run the Flask service directly:
+    For development, you can run the Flask service directly:
 
-        ```bash
-        python gql_microservice/service.py
-        ```
+    ```bash
+    python gql_microservice/service.py
+    ```
 
-        The service will listen on port `9000` by default.
+    The service will listen on port `9000` by default.
 
-        #### Deploying to Production (Linux)
+    #### Deploying to Production (Linux)
 
-        There is a deployment script provided to deploy the microservice as a
-        `systemd` service using `gunicorn`.
+    There is a deployment script provided to deploy the microservice as a
+    `systemd` service using `gunicorn`.
 
-        ##### Automatic Deployment
-        1. **Edit the script:** Change the `DEV_REPO_PATH` variable in the script to
-           match the location where you cloned the repository, and change `PROD_PATH`
-           to match the location where you will deploy the service.
+    ##### Automatic Deployment
 
-        2. **Run the script:**
+    1. **Edit the script:** Change the `DEV_REPO_PATH` variable in the script to
+       match the location where you cloned the repository, and change `PROD_PATH`
+       to match the location where you will deploy the service.
 
-           ```bash
-           sudo bash gql_microservice/deploy_lebok_service.sh
-           ```
+    2. **Run the script:**
 
-           The script will:
-           - Create a system user name `lebok`.
-           - Create the production directory at `/opt/lebok-microservice/` (or
-             wherever you configure it).
-           - Sync the necessary project files (microservice, queries, pip
-             requirements) to the production directory.
-           - Create a python virtual environment at `env/`.
-           - Link `lebok-microservice.service` to `/etc/systemd/system`.
-           - Reload `systemd` and restart the service.
+       ```bash
+       sudo bash gql_microservice/deploy_lebok_service.sh
+       ```
 
-        3. **Start on boot:** If deploying the microservice for the first time, run
-           `systemctl enable
+       The script will:
+       - Create a system user name `lebok`.
+       - Create the production directory at `/opt/lebok-microservice/` (or
+         wherever you configure it).
+       - Sync the necessary project files (microservice, queries, pip
+         requirements) to the production directory.
+       - Create a python virtual environment at `env/`.
+       - Link `lebok-microservice.service` to `/etc/systemd/system`.
+       - Reload `systemd` and restart the service.
+
+    3. **Start on boot:** If deploying the microservice for the first time, run
+       `systemctl enable
 
     lebok-microservice` to allow it to start automatically on boot.
 
