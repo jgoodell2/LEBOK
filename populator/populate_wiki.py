@@ -317,13 +317,16 @@ def create_wiki_pages(
         if nav_map and full_page_path in nav_map:
             content += nav_map[full_page_path]
 
+        page_id = None
+
         # Check if page exists
-        page_info = get_page(full_page_path)
-        page_exists = page_info and "id" in page_info
-        page_id = int(page_info["id"]) if page_exists else None
+        if do_update or do_replace:
+            page_info = get_page(full_page_path)
+            if page_info and "id" in page_info:
+                page_id = int(page_info["id"])
 
         # Update existing pages if update flag is set
-        if do_update:
+        if do_update and page_id:
             print(f"Updating page '{full_page_path}' (ID: {page_id})...", end="")
 
             if update_page(page_id, full_page_path, title, content):
@@ -343,17 +346,13 @@ def create_wiki_pages(
             continue
 
         # Delete existing page if replacement flag is set
-        if do_replace:
+        if do_replace and page_id:
             print(f"Deleting page '{full_page_path}' (ID: {page_id})...", end="")
-            page_info = get_page(full_page_path)
 
-            if page_info and "id" in page_info:
-                page_id = page_info["id"]
-
-                if delete_page(page_id):
-                    print("Done.")
-                else:
-                    print("Failed (API error).")
+            if delete_page(page_id):
+                print("Done.")
+            else:
+                print("Failed (API error).")
 
         # Call the API to create the page
         print(f"Creating page: '{title}' at path '{full_page_path}'")
