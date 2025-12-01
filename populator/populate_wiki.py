@@ -196,8 +196,63 @@ def create_navigation(nav_items: List[Dict[str, Any]]):
         sys.exit(1)
 
 
+def flatten_tree(nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Flatten the wiki tree into a linear list
+    """
+    flattened_tree = []
+    for node in nodes:
+        flattened_tree.append(node)
+        if node["children"]:
+            flattened_tree.extend(flatten_tree(node["children"]))
+
+    return flattened_tree
+
+
+def build_nav_map(nodes: List[Dict[str, Any]]) -> Dict[str, str]:
+    """
+    Builds a map of slugs and HTML strings for previous/next buttons
+    """
+    flat_list = flatten_tree(nodes)
+    nav_map = {}
+
+    for i, node in enumerate(flat_list):
+        prev_link = ""
+        next_link = ""
+
+        # Make link to previous page
+        if i > 0:
+            prev_node = flat_list[i - 1]
+            prev_url = f"/{LOCALE}/{prev_node['slug']}"
+            prev_title = html.escape(prev_node["title"])
+            prev_link = f'<a href="{prev_url}" style="text-decoration: none;">&larr; {prev_title}</a>'
+
+        # Make link to next page
+        if i < len(flat_list) - 1:
+            next_node = flat_list[i + 1]
+            next_url = f"/{LOCALE}/{next_node['slug']}"
+            next_title = html.escape(next_node["title"])
+            next_link = f'<a href="{next_url}" style="text-decoration: none;">{next_title} &rarr;</a>'
+
+        # Build the HTML block to display the links
+        nav_html = f"""
+        <hr>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2em; padding-top: 1em;">
+            <div style="text-align: left; max-width: 45%;">{prev_link}</div>
+            <div style="text-align: right; max-width: 45%;">{next_link}</div>
+        </div>
+        """
+        nav_map[node["slug"]] = nav_html
+
+    return nav_map
+
+
 def create_wiki_pages(
-    nodes: List[Dict[str, Any]], create_page_mutation: str, do_replace: bool = False
+    nodes: List[Dict[str, Any]],
+    create_page_mutation: str,
+    do_replace: bool = False,
+    do_update: bool = False,
+    nav_map: Dict[str, str] = None,
 ):
     """
     Traverse the document tree and create a wiki page for each section
