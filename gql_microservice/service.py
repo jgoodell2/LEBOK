@@ -104,13 +104,27 @@ def transform_to_ldjson(data):
     competencyLevel = get_level_designator(title)
     description = page_data.get("content")
 
+    type_label = ""
+
     # Get type label
     is_knowledge_area = competencyLevel and (len(competencyLevel.split(".")) == 1)
     is_topic = competencyLevel and (len(competencyLevel.split(".")) == 2)
     is_subtopic = competencyLevel and (len(competencyLevel.split(".")) >= 3)
 
     # Initial type label
-    if is_knowledge_area:
+    if "glossary" in path.lower():
+        if "/" in path:
+            suffix = path.split("/")[-1]
+
+            if len(suffix) == 1:
+                type_label = f"Glossary: {suffix.upper()}"
+            else:
+                type_label = "Glossary Entry"
+        else:
+            type_label = "Glossary"
+    elif path == "home":
+        type_label = "Homepage"
+    elif is_knowledge_area:
         type_label = "Knowledge Area"
     elif is_topic:
         type_label = "Topic"
