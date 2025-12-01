@@ -143,45 +143,62 @@ def inject_html_footnotes(nodes: List[Dict[str, Any]], all_footnotes: dict):
     """
     # Find Mammoth's HTML footnote reference
     # Like <a href="#footnote-1" id="footnote-ref-1">...</a>
-    html_ref_pattern = re.compile(r'<a href="#footnote-(\w+)" id="footnote-ref-\d+">')
+    html_ref_pattern = re.compile(
+        r'<a href="#footnote-(\w+)" id="footnote-ref-\d+">.*?</a>'
+    )
 
     for node in nodes:
         if node["content"]:
-            used_ids = set()
+            page_footnote_map = {}
+            current_seq_id = 1
 
-            # Find all unique footnote IDs in the section
-            for match in html_ref_pattern.finditer(node["content"]):
-                note_id = match.group(1)
-                if note_id:
-                    used_ids.add(note_id)
+            # Callback function to renumber on the fly
+            def replace_footnote_ref(match):
+                nonlocal current_seq_id
+                original_id = match.group(1)
 
-            # Append HTML definitions for any footnotes found
-            if used_ids:
-                # Build an HTML block for the definitions
+                # Assign a new number if we haven't seen this footnote on this page yet
+                if original_id not in page_footnote_map:
+                    page_footnote_map[original_id] = current_seq_id
+                    current_seq_id += 1
+
+                new_id = page_footnote_map[original_id]
+
+                # Return the reconstructed link with the NEW number visible in brackets
+                return f'<a href="#footnote-{new_id}" id="footnote-ref-{new_id}">[{new_id}]</a>'
+
+            # 1. Replace all references in the text with new [1], [2], [3]...
+            new_content = html_ref_pattern.sub(replace_footnote_ref, node["content"])
+
+            # 2. Append HTML definitions for any footnotes found (in the new order)
+            if page_footnote_map:
                 definitions_html = [
                     '<hr class="footnotes-break">',
                     '<ol class="footnotes-list">',
                 ]
 
-                # sort IDs for consistent order
-                for note_id in sorted(
-                    list(used_ids), key=lambda x: int(x) if x.isdigit() else x
-                ):
+                # Create a list of (original_id, new_id) sorted by new_id (1, 2, 3...)
+                sorted_notes = sorted(page_footnote_map.items(), key=lambda x: x[1])
+
+                for original_id, new_id in sorted_notes:
                     # Get the inner HTML of the note stored earlier
                     note_html = all_footnotes.get(
-                        note_id, f"Footnote '{note_id}' not found."
+                        original_id, f"Footnote '{original_id}' not found."
                     )
 
-                    # Recreate the <li> tag with the original ID
+                    # Recreate the <li> tag with the NEW ID
                     definitions_html.append(
-                        f'<li id="footnote-{note_id}">{note_html}</li>'
+                        f'<li id="footnote-{new_id}">{note_html}</li>'
                     )
 
                 definitions_html.append("</ol>")
                 definitions_block = "\n".join(definitions_html)
 
                 # Append the HTML block to the end of the section's content
-                node["content"] = f"{node['content'].strip()}\n\n{definitions_block}"
+                new_content = f"{new_content.strip()}\n\n{definitions_block}"
+
+            # Update the node content
+            node["content"] = new_content
 
         # Now do it again for child nodes
         if node["children"]:
