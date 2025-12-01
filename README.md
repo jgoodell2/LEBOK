@@ -92,107 +92,105 @@ QUERIES_BASEPATH=./queries
 
 1. ### Populating the wiki
 
-    The `populate_wiki.py` script is used to parse your `.docx` file and create
-    the pages in Wiki.js.
-    **Basic usage:**
+   The `populate_wiki.py` script is used to parse your `.docx` file and create
+   the pages in Wiki.js.
+   **Basic usage:**
 
-    ```bash
-    python populator/populate_wiki.py path/to/your/document.docx
-    ```
+   ```bash
+   python populator/populate_wiki.py path/to/your/document.docx
+   ```
 
-    **Options:**
-    - `--purge`: Deletes all existing pages before populating. Useful for a
-      clean import.
+   **Options:**
+   - `--purge`: Deletes all existing pages before populating. Useful for a
+     clean import.
 
-    ```bash
-    python populator/populate_wiki.py --purge path/to/your/document.docx
-    ```
+   ```bash
+   python populator/populate_wiki.py --purge path/to/your/document.docx
+   ```
 
-    - `--purge-only`: Deletes all pages and exits without populating.
+   - `--purge-only`: Deletes all pages and exits without populating.
 
-    ```bash
-    python populator/populate_wiki.py --purge-only
-    ```
+   ```bash
+   python populator/populate_wiki.py --purge-only
+   ```
 
 2. ### Running the LD+JSON Microservice
 
-    The Flask microservice runs as a separate program. When it receives a request
-    for a wiki page, it queries the Wiki.js API and returns the page as LD+JSON
-    data.
+   The Flask microservice runs as a separate program. When it receives a request
+   for a wiki page, it queries the Wiki.js API and returns the page as LD+JSON
+   data.
 
-    You can run it locally for development or deploy it to production.
+   You can run it locally for development or deploy it to production.
 
-    #### Running Locally
+   #### Running Locally
 
-    For development, you can run the Flask service directly:
+   For development, you can run the Flask service directly:
 
-    ```bash
-    python gql_microservice/service.py
-    ```
+   ```bash
+   python gql_microservice/service.py
+   ```
 
-    The service will listen on port `9000` by default.
+   The service will listen on port `9000` by default.
 
-    #### Deploying to Production (Linux)
+   #### Deploying to Production (Linux)
 
-    There is a deployment script provided to deploy the microservice as a
-    `systemd` service using `gunicorn`.
+   There is a deployment script provided to deploy the microservice as a
+   `systemd` service using `gunicorn`.
 
-    ##### Automatic Deployment
+   ##### Automatic Deployment
 
-    1. **Edit the script:** Change the `DEV_REPO_PATH` variable in the script to
-       match the location where you cloned the repository, and change `PROD_PATH`
-       to match the location where you will deploy the service.
+   1. **Edit the script:** Change the `DEV_REPO_PATH` variable in the script to
+      match the location where you cloned the repository, and change `PROD_PATH`
+      to match the location where you will deploy the service.
 
-    2. **Run the script:**
+   2. **Run the script:**
 
-       ```bash
-       sudo bash gql_microservice/deploy_lebok_service.sh
-       ```
+      ```bash
+      sudo bash gql_microservice/deploy_lebok_service.sh
+      ```
 
-       The script will:
-       - Create a system user name `lebok`.
-       - Create the production directory at `/opt/lebok-microservice/` (or
-         wherever you configure it).
-       - Sync the necessary project files (microservice, queries, pip
-         requirements) to the production directory.
-       - Create a python virtual environment at `env/`.
-       - Link `lebok-microservice.service` to `/etc/systemd/system`.
-       - Reload `systemd` and restart the service.
+      The script will:
+      - Create a system user name `lebok`.
+      - Create the production directory at `/opt/lebok-microservice/` (or
+        wherever you configure it).
+      - Sync the necessary project files (microservice, queries, pip
+        requirements) to the production directory.
+      - Create a python virtual environment at `env/`.
+      - Link `lebok-microservice.service` to `/etc/systemd/system`.
+      - Reload `systemd` and restart the service.
 
-    3. **Start on boot:** If deploying the microservice for the first time, run
-       `systemctl enable
-
-    lebok-microservice` to allow it to start automatically on boot.
+   3. **Start on boot:** If deploying the microservice for the first time, run
+      `systemctl enable lebok-microservice` to allow it to start automatically
+      on boot.
 
 3. ### Nginx Configuration
 
-    To enable content negotiation, you can use the provided Nginx configuration
-    as a reverse proxy. For this to work, Nginx needs to be installed.
+   To enable content negotiation, you can use the provided Nginx configuration
+   as a reverse proxy. For this to work, Nginx needs to be installed.
 
-    The configuration in `nginx-conf/gql-service` is set up to:
-    1. Listen on port `80`.
-    2. Define two `upstream` servers:
-       - `web_server`: Your main Wiki.js instance (defaults to `127.0.0.1:8080`).
-       - `graphql_handler`: The Flask microservice (defaults to `127.0.0.1:9000`).
+   The configuration in `nginx-conf/gql-service` is set up to:
+   1. Listen on port `80`.
+   2. Define two `upstream` servers:
+      - `web_server`: Your main Wiki.js instance (defaults to `127.0.0.1:8080`).
+      - `graphql_handler`: The Flask microservice (defaults to `127.0.0.1:9000`).
 
-    3. Use a `map` directive to check the `Accept` header. If it contains
-       `application/json` or `application/ld+json`, it routes the request to
-       `graphql_handler`.
-    4. All other requests are proxied to `web_server`.
+   3. Use a `map` directive to check the `Accept` header. If it contains
+      `application/json` or `application/ld+json`, it routes the request to
+      `graphql_handler`.
+   4. All other requests are proxied to `web_server`.
 
-    **To use it:**
-    1. Update the `upstream web_server` block in `nginx-conf/gql-service` to
-        point to your running Wiki.js instance.
-    2. Ensure the `upstream graphql_handler` points to where your Flask
-        microservice is running.
-    3. Copy or link this configuration into your Nginx `sites-available`
-        directory and enable it.
-        - Enabling it usually involves creating a symbolic link to the
-          configuration file in your Nginx `sites-enabled` directory.
-    4. Reload Nginx.
+   **To use it:**
+   1. Update the `upstream web_server` block in `nginx-conf/gql-service` to
+      point to your running Wiki.js instance.
+   2. Ensure the `upstream graphql_handler` points to where your Flask
+      microservice is running.
+   3. Copy or link this configuration into your Nginx `sites-available`
+      directory and enable it.
+      - Enabling it usually involves creating a symbolic link to the
+        configuration file in your Nginx `sites-enabled` directory.
+   4. Reload Nginx.
 
-              Now, visiting `http://your-server:8080/en/home` in a browser will show the
-              Wiki.js page, while a request like `curl -H "Accept: application/ld+json"
-
-        <http://your-server:8080/en/home`> will return the JSON-LD output from the
-        microservice.
+      Now, visiting `http://your-server:8080/en/home` in a browser will show
+      the Wiki.js page, while a request like `curl -H "Accept:
+application/ld+json" http://your-server:8080/en/home` will return the
+      JSON-LD output from the microservice.
