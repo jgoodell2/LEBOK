@@ -16,6 +16,10 @@ def is_home(node: Dict[str, Any]):
     return node["slug"].startswith("home")
 
 
+def is_references(node: Dict[str, Any]):
+    return node["slug"].startswith("consolidated-references")
+
+
 def is_glossary(node: Dict[str, Any]):
     return node["level"] == 1 and node["title"].startswith("Glossary")
 
@@ -91,6 +95,7 @@ def create_navlinks(nodes: List[Dict[str, Any]]) -> List:
     home = map(create_nav_item, filter(is_home, nodes))
     knowledge_areas = map(create_nav_item, filter(is_knowledge_area, nodes))
     glossary = map(create_nav_item, filter(is_glossary, nodes))
+    references = map(create_nav_item, filter(is_references, nodes))
 
     # Everything that isn't a knowledge area or the glossary is probably the
     # introductory information and copyright stuff
@@ -100,6 +105,7 @@ def create_navlinks(nodes: List[Dict[str, Any]]) -> List:
         if not is_home(node)
         and not is_knowledge_area(node)
         and not is_glossary(node)
+        and not is_references(node)
         and node["content"] != ""
     )
 
@@ -111,6 +117,7 @@ def create_navlinks(nodes: List[Dict[str, Any]]) -> List:
         + list(knowledge_areas)
         + [create_divider()]
         + list(glossary)
+        + list(references)
     )
 
 
