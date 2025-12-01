@@ -231,6 +231,8 @@ def handle_request(path):
         # Otherwise, use the path as-is (or default to 'home' if it's empty).
         page_path = path or "home"
 
+    page_path = page_path.rstrip("/")
+
     print(f"Received request for '{path}', querying Wiki.js API for {page_path}...")
 
     query_variables = {"path": page_path, "locale": WIKI_LOCALE}
