@@ -138,7 +138,7 @@ PDF_CSS = CSS(
         display: block; /* Ensures the row takes up full width */
     }}
     
-    /* The Magic: Adds dots and page number */
+    /* Dots and page number */
     #home a::after {{
         content: leader('.') target-counter(attr(href), page);
         font-weight: normal;
